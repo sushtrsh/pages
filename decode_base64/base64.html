@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}</style>
+<title>Dekoder Blob</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: alat dua panel (input di kiri, hasil di kanan) yang menumpuk jadi satu kolom di layar sempit. */
+:root {
+  --bg: #F2F5F6;
+  --surface: #FFFFFF;
+  --fg: #14201F;
+  --muted: #5B6B6A;
+  --line: #D5DDDD;
+  --accent: #0B6E66;
+  --accent-fg: #FFFFFF;
+  --accent-soft: #DCEEEC;
+  --danger: #A32A12;
+  --danger-soft: #FBE6E0;
+  --t-key: #0B5F8A;
+  --t-str: #1F7A4D;
+  --t-num: #8A4B0B;
+  --t-bool: #7A3E9D;
+  --t-null: #6B7280;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1214;
+    --surface: #121B1E;
+    --fg: #E3EDEC;
+    --muted: #8FA3A1;
+    --line: #24343A;
+    --accent: #4FD1C5;
+    --accent-fg: #06201D;
+    --accent-soft: #15302F;
+    --danger: #FDA38E;
+    --danger-soft: #3A1B14;
+    --t-key: #7CC4F0;
+    --t-str: #86D6A3;
+    --t-num: #F0B36A;
+    --t-bool: #C79BE8;
+    --t-null: #8FA3A1;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1214;
+  --surface: #121B1E;
+  --fg: #E3EDEC;
+  --muted: #8FA3A1;
+  --line: #24343A;
+  --accent: #4FD1C5;
+  --accent-fg: #06201D;
+  --accent-soft: #15302F;
+  --danger: #FDA38E;
+  --danger-soft: #3A1B14;
+  --t-key: #7CC4F0;
+  --t-str: #86D6A3;
+  --t-num: #F0B36A;
+  --t-bool: #C79BE8;
+  --t-null: #8FA3A1;
+  color-scheme: dark;
+}
+ 
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+ 
+header h1 { margin: 0; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
+ 
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 900px) { .grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+ 
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-head h2 { margin: 0; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.panel-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+ 
+textarea {
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+textarea::placeholder { color: var(--muted); }
+ 
+button {
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+button.primary:hover { filter: brightness(1.08); color: var(--accent-fg); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+ 
+.meta { display: flex; gap: 8px 14px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 0.82rem; }
+.meta .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg); }
+.note {
+  font-size: 0.82rem; color: var(--muted);
+  background: var(--accent-soft); border-radius: 4px; padding: 6px 10px;
+}
+.note[hidden] { display: none; }
+ 
+.tabs { display: flex; gap: 4px; }
+.tab { border-color: transparent; padding: 4px 10px; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+ 
+.pipeline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 28px; }
+.chip {
+  font-family: var(--font-mono); font-size: 0.76rem;
+  background: var(--accent-soft); color: var(--accent);
+  border-radius: 3px; padding: 2px 8px;
+}
+.arrow { color: var(--muted); font-size: 0.8rem; }
+.pipeline .empty { color: var(--muted); font-size: 0.86rem; }
+ 
+.error {
+  background: var(--danger-soft); color: var(--danger);
+  border-radius: 4px; padding: 8px 12px; font-size: 0.88rem;
+}
+.error[hidden] { display: none; }
+ 
+.out {
+  margin: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  max-height: 62vh;
+  min-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
+}
+.t-key { color: var(--t-key); }
+.t-str { color: var(--t-str); }
+.t-num { color: var(--t-num); }
+.t-bool { color: var(--t-bool); }
+.t-null { color: var(--t-null); }
+ 
+.tree { max-height: 62vh; min-height: 280px; overflow: auto; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); padding: 8px 10px; font-family: var(--font-mono); font-size: 12.5px; }
+.tree details { margin-left: 14px; }
+.tree > details, .tree > .row { margin-left: 0; }
+.tree summary { cursor: pointer; padding: 1px 0; }
+.tree .row { margin-left: 14px; padding: 1px 0; word-break: break-word; }
+.tree .k { color: var(--t-key); }
+.tree .type { color: var(--muted); font-size: 0.74rem; margin-left: 6px; }
+.tree .v-str { color: var(--t-str); }
+.tree .v-num { color: var(--t-num); }
+.tree .v-bool { color: var(--t-bool); }
+.tree .v-null { color: var(--t-null); }
+.tree .more { margin-left: 14px; color: var(--muted); font-size: 0.78rem; }
+ 
+footer { color: var(--muted); font-size: 0.82rem; max-width: 70ch; }
+footer code { font-family: var(--font-mono); font-size: 0.78rem; }
+ 
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+ 
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Dekoder</h1>
+  </header>
+ 
+  <div class="grid">
+    <section class="panel" aria-labelledby="in-title">
+      <div class="panel-head">
+        <h2 id="in-title">Input</h2>
+        <div class="actions">
+          <button type="button" id="btn-sample">Contoh</button>
+          <button type="button" id="btn-clear">remove</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="note" id="sample-note">string.</div>
+        <label for="input" style="position:absolute;left:-9999px">String yang akan didekode</label>
+        <textarea id="input" spellcheck="false" autocomplete="off" placeholder="Tempel di sini, misalnya eJzNfdty4rq... atau const s = &quot;eJz...&quot;;"></textarea>
+        <div class="meta"><span>Panjang input <span class="num" id="m-in">0</span> karakter</span></div>
+        <div class="actions"><button type="button" class="primary" id="btn-decode">Dekode</button></div>
+      </div>
+    </section>
+ 
+    <section class="panel" aria-labelledby="out-title">
+      <div class="panel-head">
+        <h2 id="out-title">Hasil</h2>
+        <div class="tabs" role="tablist" aria-label="Tampilan hasil">
+          <button type="button" class="tab" role="tab" id="tab-text" aria-selected="true" aria-controls="view-text">Teks</button>
+          <button type="button" class="tab" role="tab" id="tab-tree" aria-selected="false" aria-controls="view-tree">Struktur</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="pipeline" id="pipeline" aria-live="polite"></div>
+        <div class="error" id="error" role="alert" hidden></div>
+        <pre class="out" id="view-text" role="tabpanel" aria-labelledby="tab-text" tabindex="0"></pre>
+        <div class="tree" id="view-tree" role="tabpanel" aria-labelledby="tab-tree" hidden></div>
+        <div class="meta">
+          <span>Terkompresi <span class="num" id="m-bin">0</span> B</span>
+          <span>Hasil <span class="num" id="m-bout">0</span> B</span>
+          <button type="button" id="btn-copy">Salin hasil</button>
+          <span id="copy-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+ 
+<script>
+// ==core==
+function b64ToBytes(str) {
+  var s = str.replace(/-/g, '+').replace(/_/g, '/').replace(/\s+/g, '').replace(/=+$/, '');
+  while (s.length % 4) s += '=';
+  var bin = atob(s);
+  var out = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function bytesToB64Url(bytes) {
+  var bin = '';
+  for (var i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function streamTransform(kind, bytes, ctor) {
+  var t = new ctor(kind);
+  var stream = new Blob([bytes]).stream().pipeThrough(t);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+function extractPayload(raw) {
+  var t = raw.trim();
+  var re = /(["'`])([A-Za-z0-9+\/_\-=\s]{16,})\1/g, m, found = [];
+  while ((m = re.exec(t)) !== null) found.push(m[2]);
+  if (found.length) {
+    found.sort(function (a, b) { return b.length - a.length; });
+    return found[0];
+  }
+  return t.replace(/^["'`]+|["'`]+$/g, '');
+}
+function asText(bytes) {
+  try {
+    var s = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(s)) return null;
+    return s;
+  } catch (e) { return null; }
+}
+function hexPreview(bytes) {
+  var parts = [];
+  var n = Math.min(bytes.length, 256);
+  for (var i = 0; i < n; i += 16) {
+    var row = [];
+    for (var j = i; j < Math.min(i + 16, n); j++) row.push(bytes[j].toString(16).padStart(2, '0'));
+    parts.push(i.toString(16).padStart(4, '0') + '  ' + row.join(' '));
+  }
+  return parts.join('\n') + (bytes.length > n ? '\n... (' + (bytes.length - n) + ' byte lagi)' : '');
+}
+async function decodeBlob(raw) {
+  var cur = extractPayload(raw).replace(/\s+/g, '');
+  if (!cur) throw new Error('Input masih kosong.');
+  var steps = [], firstBytes = 0, text = null, json, isJson = false, binary = null;
+  for (var layer = 0; layer < 4; layer++) {
+    if (!/^[A-Za-z0-9+\/_\-]+={0,2}$/.test(cur)) {
+      if (layer === 0) throw new Error('Teks ini bukan base64. Pastikan hanya string-nya yang ditempel, tanpa karakter lain.');
+      break;
+    }
+    var bytes;
+    try { bytes = b64ToBytes(cur); } catch (e) { throw new Error('Base64 tidak valid. Mungkin ada karakter yang terpotong saat disalin.'); }
+    if (layer === 0) firstBytes = bytes.length;
+    steps.push(/[-_]/.test(cur) ? 'base64url' : 'base64');
+    var plain = asText(bytes);
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      try { bytes = await streamTransform('gzip', bytes, DecompressionStream); steps.push('gzip'); }
+      catch (e) { throw new Error('Terdeteksi gzip, tetapi gagal dibuka. Datanya kemungkinan rusak atau terpotong.'); }
+    } else if (bytes[0] === 0x78 && [0x01, 0x5e, 0x9c, 0xda].indexOf(bytes[1]) >= 0) {
+      try { bytes = await streamTransform('deflate', bytes, DecompressionStream); steps.push('zlib'); }
+      catch (e) { throw new Error('Terdeteksi zlib, tetapi gagal dibuka. Datanya kemungkinan rusak atau terpotong.'); }
+    } else if (plain === null) {
+      try {
+        var r = await streamTransform('deflate-raw', bytes, DecompressionStream);
+        if (r.length) { bytes = r; steps.push('deflate mentah'); }
+      } catch (e) { /* bukan deflate mentah */ }
+    }
+    text = asText(bytes);
+    if (text === null) { binary = bytes; break; }
+    var trimmed = text.trim();
+    try {
+      json = JSON.parse(trimmed);
+      if (typeof json === 'string') { cur = json.replace(/\s+/g, ''); text = null; continue; }
+      isJson = true; steps.push('JSON'); break;
+    } catch (e) { /* bukan JSON */ }
+    if (/^[A-Za-z0-9+\/_\-]{16,}={0,2}$/.test(trimmed.replace(/\s+/g, ''))) { cur = trimmed.replace(/\s+/g, ''); continue; }
+    steps.push('teks');
+    break;
+  }
+  if (binary) {
+    steps.push('biner');
+    return { steps: steps, isJson: false, text: 'Hasilnya data biner, bukan teks. Cuplikan heksadesimal:\n\n' + hexPreview(binary), json: null, inBytes: firstBytes, outBytes: binary.length };
+  }
+  if (text === null && typeof json === 'string') { text = json; steps.push('teks'); }
+  var outBytes = new TextEncoder().encode(text).length;
+  return {
+    steps: steps, isJson: isJson,
+    text: isJson ? JSON.stringify(json, null, 2) : text,
+    json: isJson ? json : null,
+    inBytes: firstBytes, outBytes: outBytes
+  };
+}
+// ==/core==
+ 
+var $ = function (id) { return document.getElementById(id); };
+var els = {
+  input: $('input'), pipeline: $('pipeline'), error: $('error'), text: $('view-text'), tree: $('view-tree'),
+  mIn: $('m-in'), mBin: $('m-bin'), mBout: $('m-bout'), copyStatus: $('copy-status'), note: $('sample-note'),
+  tabText: $('tab-text'), tabTree: $('tab-tree')
+};
+var lastText = '';
+var timer = null;
+var runId = 0;
+ 
+function fmt(n) { return n.toLocaleString('id-ID'); }
+ 
+function highlightJson(src) {
+  var re = /("(?:\\u[0-9a-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+  var frag = document.createDocumentFragment(), last = 0, m;
+  function addText(s) { if (s) frag.appendChild(document.createTextNode(s)); }
+  while ((m = re.exec(src)) !== null) {
+    addText(src.slice(last, m.index));
+    var tok = m[0], cls;
+    if (tok.charAt(0) === '"') cls = m[2] ? 't-key' : 't-str';
+    else if (tok === 'true' || tok === 'false') cls = 't-bool';
+    else if (tok === 'null') cls = 't-null';
+    else cls = 't-num';
+    var span = document.createElement('span');
+    span.className = cls;
+    span.textContent = tok;
+    frag.appendChild(span);
+    last = m.index + tok.length;
+  }
+  addText(src.slice(last));
+  return frag;
+}
+ 
+function typeLabel(v) {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'array [' + v.length + ']';
+  if (typeof v === 'object') return 'object {' + Object.keys(v).length + '}';
+  return typeof v;
+}
+function buildNode(key, val, depth) {
+  var isObj = val !== null && typeof val === 'object';
+  if (!isObj) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    var k = document.createElement('span'); k.className = 'k'; k.textContent = key;
+    row.appendChild(k);
+    row.appendChild(document.createTextNode(': '));
+    var v = document.createElement('span');
+    var shown;
+    if (typeof val === 'string') { v.className = 'v-str'; shown = JSON.stringify(val.length > 90 ? val.slice(0, 90) + '… (' + val.length + ' karakter)' : val); }
+    else if (typeof val === 'number') { v.className = 'v-num'; shown = String(val); }
+    else if (typeof val === 'boolean') { v.className = 'v-bool'; shown = String(val); }
+    else { v.className = 'v-null'; shown = 'null'; }
+    v.textContent = shown;
+    row.appendChild(v);
+    return row;
+  }
+  var d = document.createElement('details');
+  if (depth < 1) d.open = true;
+  var s = document.createElement('summary');
+  var kk = document.createElement('span'); kk.className = 'k'; kk.textContent = key;
+  var ty = document.createElement('span'); ty.className = 'type'; ty.textContent = typeLabel(val);
+  s.appendChild(kk); s.appendChild(ty);
+  d.appendChild(s);
+  var entries = Array.isArray(val) ? val.map(function (x, i) { return [String(i), x]; }) : Object.keys(val).map(function (x) { return [x, val[x]]; });
+  var limit = 40;
+  entries.slice(0, limit).forEach(function (e) { d.appendChild(buildNode(e[0], e[1], depth + 1)); });
+  if (entries.length > limit) {
+    var more = document.createElement('div'); more.className = 'more';
+    more.textContent = '… dan ' + (entries.length - limit) + ' item lainnya';
+    d.appendChild(more);
+  }
+  return d;
+}
+function renderTree(json) {
+  els.tree.textContent = '';
+  if (json === null || typeof json !== 'object') {
+    var p = document.createElement('div'); p.className = 'row';
+    p.textContent = 'Hasil ini bukan JSON, jadi tidak ada struktur yang bisa ditampilkan.';
+    els.tree.appendChild(p);
+    return;
+  }
+  els.tree.appendChild(buildNode('(akar)', json, 0));
+}
+ 
+function renderPipeline(steps) {
+  els.pipeline.textContent = '';
+  if (!steps || !steps.length) {
+    var e = document.createElement('span'); e.className = 'empty'; e.textContent = 'Urutan dekode akan muncul di sini.';
+    els.pipeline.appendChild(e);
+    return;
+  }
+  steps.forEach(function (s, i) {
+    if (i) { var a = document.createElement('span'); a.className = 'arrow'; a.textContent = '→'; els.pipeline.appendChild(a); }
+    var c = document.createElement('span'); c.className = 'chip'; c.textContent = s;
+    els.pipeline.appendChild(c);
+  });
+}
+ 
+function showError(msg) {
+  els.error.hidden = false;
+  els.error.textContent = msg;
+  els.text.textContent = '';
+  els.tree.textContent = '';
+  lastText = '';
+  els.mBin.textContent = '0';
+  els.mBout.textContent = '0';
+  renderPipeline([]);
+}
+ 
+async function doDecode() {
+  var id = ++runId;
+  var raw = els.input.value;
+  els.mIn.textContent = fmt(raw.length);
+  els.copyStatus.textContent = '';
+  if (!raw.trim()) {
+    els.error.hidden = true;
+    els.text.textContent = '';
+    els.tree.textContent = '';
+    lastText = '';
+    els.mBin.textContent = '0'; els.mBout.textContent = '0';
+    renderPipeline([]);
+    return;
+  }
+  try {
+    var res = await decodeBlob(raw);
+    if (id !== runId) return;
+    els.error.hidden = true;
+    lastText = res.text;
+    els.text.textContent = '';
+    if (res.isJson && res.text.length < 600000) els.text.appendChild(highlightJson(res.text));
+    else els.text.textContent = res.text;
+    renderTree(res.json);
+    renderPipeline(res.steps);
+    els.mBin.textContent = fmt(res.inBytes);
+    els.mBout.textContent = fmt(res.outBytes);
+  } catch (e) {
+    if (id !== runId) return;
+    showError(e && e.message ? e.message : 'Gagal mendekode input ini.');
+  }
+}
+ 
+function schedule() { clearTimeout(timer); timer = setTimeout(doDecode, 250); }
+ 
+async function makeSample() {
+  var obj = {
+    contoh: true,
+    judul: 'Data contoh',
+    musim: 2,
+    episode: [
+      { nomor: 1, durasi: '24 mnt', subtitle: ['id', 'en'] },
+      { nomor: 2, durasi: '24 mnt', subtitle: ['id'] }
+    ],
+    catatan: 'Ini hanya contoh untuk melihat cara kerja dekoder.'
+  };
+  var bytes = new TextEncoder().encode(JSON.stringify(obj));
+  var z = await streamTransform('deflate', bytes, CompressionStream);
+  return bytesToB64Url(z);
+}
+ 
+async function loadSample() {
+  try {
+    els.input.value = await makeSample();
+    els.note.hidden = false;
+    await doDecode();
+  } catch (e) {
+    showError('Browser ini belum mendukung kompresi bawaan, jadi contoh tidak bisa dibuat.');
+  }
+}
+ 
+els.input.addEventListener('input', function () { els.note.hidden = true; schedule(); });
+els.input.addEventListener('paste', function () { els.note.hidden = true; setTimeout(doDecode, 30); });
+$('btn-decode').addEventListener('click', doDecode);
+$('btn-sample').addEventListener('click', loadSample);
+$('btn-clear').addEventListener('click', function () { els.input.value = ''; els.note.hidden = true; doDecode(); els.input.focus(); });
+ 
+function selectResult() {
+  var r = document.createRange();
+  r.selectNodeContents(els.text);
+  var sel = window.getSelection();
+  sel.removeAllRanges(); sel.addRange(r);
+}
+$('btn-copy').addEventListener('click', function () {
+  if (!lastText) { els.copyStatus.textContent = 'Belum ada hasil.'; return; }
+  var done = function () { els.copyStatus.textContent = 'Tersalin.'; };
+  var fail = function () { selectResult(); els.copyStatus.textContent = 'Teks dipilih, tekan Ctrl+C.'; };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lastText).then(done, fail);
+    else fail();
+  } catch (e) { fail(); }
+});
+ 
+function selectTab(which) {
+  var isText = which === 'text';
+  els.tabText.setAttribute('aria-selected', String(isText));
+  els.tabTree.setAttribute('aria-selected', String(!isText));
+  els.text.hidden = !isText;
+  els.tree.hidden = isText;
+}
+els.tabText.addEventListener('click', function () { selectTab('text'); });
+els.tabTree.addEventListener('click', function () { selectTab('tree'); });
+ 
+renderPipeline([]);
+loadSample();
+</script>
+</body>
+</html>
+ 
